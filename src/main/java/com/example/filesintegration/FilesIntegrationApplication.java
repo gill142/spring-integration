@@ -8,15 +8,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.integration.dsl.Adapters;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.dsl.IntegrationFlows;
 import org.springframework.integration.dsl.sftp.Sftp;
 import org.springframework.integration.file.FileHeaders;
 import org.springframework.integration.file.FileNameGenerator;
 import org.springframework.integration.file.dsl.Files;
-import org.springframework.integration.ftp.dsl.Ftp;
-import org.springframework.integration.ftp.session.DefaultFtpSessionFactory;
+import org.springframework.integration.sftp.session.DefaultSftpSessionFactory;
 import org.springframework.integration.transformer.GenericTransformer;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
@@ -32,22 +30,22 @@ import java.io.PrintStream;
 public class FilesIntegrationApplication {
 
 	@Bean
-	DefaultFtpSessionFactory ftpFileSessionFactory(
+	DefaultSftpSessionFactory ftpFileSessionFactory(
 			@Value("${ftp.port:2121}") int port,
 			@Value ("${ftp.username:kamal}") String username,
 			@Value ("${ftp.password:spring}") String password)
 	{
-		DefaultFtpSessionFactory ftpSessionFactory = new DefaultFtpSessionFactory();
-		ftpSessionFactory.setPort(port);
-		ftpSessionFactory.setUsername(username);
-		ftpSessionFactory.setPassword(password);
-		return ftpSessionFactory;
+		DefaultSftpSessionFactory sftpSessionFactory = new DefaultSftpSessionFactory();
+		sftpSessionFactory.setPort(port);
+		sftpSessionFactory.setUser(username);
+		sftpSessionFactory.setPassword(password);
+		return sftpSessionFactory;
 	}
 
 	@Bean
 	IntegrationFlow files (@Value("${input-directory:${HOME}/Desktop/in}") File in,
 						   Environment environment,
-						   DefaultFtpSessionFactory ftpSessionFactory)
+						   DefaultSftpSessionFactory sftpSessionFactory)
 	{
 
 		GenericTransformer<File, Message<String>> fileStringGenericTransformer = (File file) -> {
@@ -70,7 +68,7 @@ public class FilesIntegrationApplication {
 
 		return IntegrationFlows.from(Files.inboundAdapter(in).autoCreateDirectory(true).preventDuplicates(true).patternFilter("*.jpg"))
 				.transform(File.class, fileStringGenericTransformer)
-				.handle(Ftp.outboundAdapter(ftpSessionFactory).fileNameGenerator(new FileNameGenerator() {
+				.handle(Sftp.outboundAdapter(sftpSessionFactory).fileNameGenerator(new FileNameGenerator() {
 					@Override
 					public String generateFileName(Message<?> message) {
 						Object o = message.getHeaders().get(FileHeaders.FILENAME);
